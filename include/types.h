@@ -28,6 +28,8 @@ struct Registers {
     uint16_t sp, pc;
 };
 
+enum Flag { CARRY = 4, HALF_CARRY, SUBTRACT, ZERO };
+
 struct CPU {
     struct Registers regs;
     uint8_t current_opcode;
