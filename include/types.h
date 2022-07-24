@@ -33,8 +33,15 @@ struct CPU {
     uint8_t current_opcode;
 };
 
+// Memory is just a raw contiguous array of bytes for now,
+// so that I can test out CPU instructions
+struct Memory {
+    uint8_t raw[512];
+};
+
 struct Console {
     struct CPU cpu;
+    struct Memory memory;
 };
 
 struct Instruction {
