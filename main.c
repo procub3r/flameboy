@@ -5,11 +5,11 @@
 struct Console console;
 
 int main() {
-    // console.cpu.regs.pc is 0.
-    // It doesn't change atm.
-    console.memory.raw[0] = 0x37;
+    // console.cpu.regs.hl is 0
+    // because it is uninitialized.
+    console.memory.raw[0] = 0x38;
     console.memory.raw[1] = 0x13;
-    printf("HL Before: %04x\n", console.cpu.regs.hl);
-    cpuExecuteOpcode(&console, 0x21); // LD HL,u16
-    printf("HL After:  %04x\n", console.cpu.regs.hl);
+    printf("Memory before: %04x\n", ((uint16_t*)&console.memory.raw)[0]);
+    cpuExecuteOpcode(&console, 0x35); // DEC (HL)
+    printf("Memory after:  %04x\n", ((uint16_t*)&console.memory.raw)[0]);
 }

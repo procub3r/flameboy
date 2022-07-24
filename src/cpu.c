@@ -26,8 +26,6 @@ void clearFlag(struct CPU* cpu, enum Flag flag) {
 }
 
 void nop(struct Console* console) {} // Do nothing
-void inc(struct Console* console) {}
-void dec(struct Console* console) {}
 void rlca(struct Console* console) {}
 void add(struct Console* console) {}
 void rrca(struct Console* console) {}
@@ -60,8 +58,6 @@ void di(struct Console* console) {}
 void ei(struct Console* console) {}
 
 static struct Instruction instructions[256];
-
-void ld(struct Console* console) {}
 
 void ld_read8(struct Console* console) {
     REG8(INSTRUCTION.arg1) = memRead8(&console->memory, REG16(INSTRUCTION.arg2));
@@ -140,6 +136,65 @@ void ld_reg16_src_offset(struct Console* console) {
     REG16(INSTRUCTION.arg1) = src + offset;
 }
 
+void inc_reg8(struct Console* console) {
+    clearFlag(&console->cpu, SUBTRACT);
+    if ((REG8(INSTRUCTION.arg1) & 0x0F) + 1 > 0x0F) setFlag(&console->cpu, HALF_CARRY);
+    else clearFlag(&console->cpu, HALF_CARRY);
+
+    REG8(INSTRUCTION.arg1)++;
+
+    if (!REG8(INSTRUCTION.arg1)) setFlag(&console->cpu, ZERO);
+    else clearFlag(&console->cpu, ZERO);
+}
+
+void inc_reg16(struct Console* console) {
+    REG16(INSTRUCTION.arg1)++;
+}
+
+void inc_mem(struct Console* console) {
+    uint16_t address = REG16(INSTRUCTION.arg1);
+    uint8_t data = memRead8(&console->memory, address);
+
+    clearFlag(&console->cpu, SUBTRACT);
+    if ((data & 0x0F) + 1 > 0x0F) setFlag(&console->cpu, HALF_CARRY);
+    else clearFlag(&console->cpu, HALF_CARRY);
+
+    memWrite8(&console->memory, address, data + 1);
+
+    if (!data) setFlag(&console->cpu, ZERO);
+    else clearFlag(&console->cpu, ZERO);
+}
+
+void dec_reg8(struct Console* console) {
+    REG8(INSTRUCTION.arg1)--;
+
+    setFlag(&console->cpu, SUBTRACT);
+
+    if (!REG8(INSTRUCTION.arg1)) setFlag(&console->cpu, ZERO);
+    else clearFlag(&console->cpu, ZERO);
+
+    if ((REG8(INSTRUCTION.arg1) & 0x0F) + 1 > 0x0F) setFlag(&console->cpu, HALF_CARRY);
+    else clearFlag(&console->cpu, HALF_CARRY);
+}
+
+void dec_reg16(struct Console* console) {
+    REG16(INSTRUCTION.arg1)--;
+}
+
+void dec_mem(struct Console* console) {
+    uint16_t address = REG16(INSTRUCTION.arg1);
+    uint8_t data = memRead8(&console->memory, address) - 1;
+    memWrite8(&console->memory, address, data);
+
+    setFlag(&console->cpu, SUBTRACT);
+
+    if (!data) setFlag(&console->cpu, ZERO);
+    else clearFlag(&console->cpu, ZERO);
+
+    if ((data & 0x0F) + 1 > 0x0F) setFlag(&console->cpu, HALF_CARRY);
+    else clearFlag(&console->cpu, HALF_CARRY);
+}
+
 void cpuExecuteOpcode(struct Console* console, uint8_t opcode) {
     console->cpu.current_opcode = opcode;
     instructions[opcode].execute(console);
@@ -150,65 +205,65 @@ static struct Instruction instructions[256] = {
     { "NOP", 1, 4, 0, nop, 0, 0 },
     { "LD BC,u16", 3, 12, 0, ld_read16, O(regs.bc), 0 },
     { "LD (BC),A", 1, 8, 0, ld_write8, O(regs.bc), O(regs.a) },
-    { "INC BC", 1, 8, 0, inc, 0, 0 },
-    { "INC B", 1, 4, 0, inc, 0, 0 },
-    { "DEC B", 1, 4, 0, dec, 0, 0 },
+    { "INC BC", 1, 8, 0, inc_reg16, O(regs.bc), 0 },
+    { "INC B", 1, 4, 0, inc_reg8, O(regs.b), 0 },
+    { "DEC B", 1, 4, 0, dec_reg8, O(regs.b), 0 },
     { "LD B,u8", 2, 8, 0, ld_read8, O(regs.b), O(regs.pc) },
     { "RLCA", 1, 4, 0, rlca, 0, 0 },
     { "LD (u16),SP", 3, 20, 0, ld_write16, O(regs.pc), O(regs.sp) },
     { "ADD HL,BC", 1, 8, 0, add, 0, 0 },
     { "LD A,(BC)", 1, 8, 0, ld_read8, O(regs.a), O(regs.bc) },
-    { "DEC BC", 1, 8, 0, dec, 0, 0 },
-    { "INC C", 1, 4, 0, inc, 0, 0 },
-    { "DEC C", 1, 4, 0, dec, 0, 0 },
+    { "DEC BC", 1, 8, 0, dec_reg16, O(regs.bc), 0 },
+    { "INC C", 1, 4, 0, inc_reg8, O(regs.c), 0 },
+    { "DEC C", 1, 4, 0, dec_reg8, O(regs.c), 0 },
     { "LD C,u8", 2, 8, 0, ld_read8, O(regs.c), O(regs.pc) },
     { "RRCA", 1, 4, 0, rrca, 0, 0 },
     { "STOP", 1, 4, 0, stop, 0, 0 },
     { "LD DE,u16", 3, 12, 0, ld_read16, O(regs.de), 0 },
     { "LD (DE),A", 1, 8, 0, ld_write8, O(regs.de), O(regs.a) },
-    { "INC DE", 1, 8, 0, inc, 0, 0 },
-    { "INC D", 1, 4, 0, inc, 0, 0 },
-    { "DEC D", 1, 4, 0, dec, 0, 0 },
+    { "INC DE", 1, 8, 0, inc_reg16, O(regs.de), 0 },
+    { "INC D", 1, 4, 0, inc_reg8, O(regs.d), 0 },
+    { "DEC D", 1, 4, 0, dec_reg8, O(regs.d), 0 },
     { "LD D,u8", 2, 8, 0, ld_read8, O(regs.d), O(regs.pc) },
     { "RLA", 1, 4, 0, rla, 0, 0 },
     { "JR i8", 2, 12, 0, jr, 0, 0 },
     { "ADD HL,DE", 1, 8, 0, add, 0, 0 },
     { "LD A,(DE)", 1, 8, 0, ld_read8, O(regs.a), O(regs.de) },
-    { "DEC DE", 1, 8, 0, dec, 0, 0 },
-    { "INC E", 1, 4, 0, inc, 0, 0 },
-    { "DEC E", 1, 4, 0, dec, 0, 0 },
+    { "DEC DE", 1, 8, 0, dec_reg16, O(regs.de), 0 },
+    { "INC E", 1, 4, 0, inc_reg8, O(regs.e), 0 },
+    { "DEC E", 1, 4, 0, dec_reg8, O(regs.e), 0 },
     { "LD E,u8", 2, 8, 0, ld_read8, O(regs.e), O(regs.pc) },
     { "RRA", 1, 4, 0, rra, 0, 0 },
     { "JR NZ,i8", 2, 8, 12, jr, 0, 0 },
     { "LD HL,u16", 3, 12, 0, ld_read16, O(regs.hl), 0 },
     { "LD (HL+),A", 1, 8, 0, ld_write8_incdest, O(regs.hl), O(regs.a) },
-    { "INC HL", 1, 8, 0, inc, 0, 0 },
-    { "INC H", 1, 4, 0, inc, 0, 0 },
-    { "DEC H", 1, 4, 0, dec, 0, 0 },
+    { "INC HL", 1, 8, 0, inc_reg16, O(regs.hl), 0 },
+    { "INC H", 1, 4, 0, inc_reg8, O(regs.h), 0 },
+    { "DEC H", 1, 4, 0, dec_reg8, O(regs.h), 0 },
     { "LD H,u8", 2, 8, 0, ld_read8, O(regs.h), O(regs.pc) },
     { "DAA", 1, 4, 0, daa, 0, 0 },
     { "JR Z,i8", 2, 8, 12, jr, 0, 0 },
     { "ADD HL,HL", 1, 8, 0, add, 0, 0 },
     { "LD A,(HL+)", 1, 8, 0, ld_read8_incsrc, O(regs.a), O(regs.hl) },
-    { "DEC HL", 1, 8, 0, dec, 0, 0 },
-    { "INC L", 1, 4, 0, inc, 0, 0 },
-    { "DEC L", 1, 4, 0, dec, 0, 0 },
+    { "DEC HL", 1, 8, 0, dec_reg16, O(regs.hl), 0 },
+    { "INC L", 1, 4, 0, inc_reg8, O(regs.l), 0 },
+    { "DEC L", 1, 4, 0, dec_reg8, O(regs.l), 0 },
     { "LD L,u8", 2, 8, 0, ld_read8, O(regs.l), O(regs.pc) },
     { "CPL", 1, 4, 0, cpl, 0, 0 },
     { "JR NC,i8", 2, 8, 12, jr, 0, 0 },
     { "LD SP,u16", 3, 12, 0, ld_read16, O(regs.sp), 0 },
     { "LD (HL-),A", 1, 8, 0, ld_write8_decdest, O(regs.hl), O(regs.a) },
-    { "INC SP", 1, 8, 0, inc, 0, 0 },
-    { "INC (HL)", 1, 12, 0, inc, 0, 0 },
-    { "DEC (HL)", 1, 12, 0, dec, 0, 0 },
+    { "INC SP", 1, 8, 0, inc_reg16, O(regs.sp), 0 },
+    { "INC (HL)", 1, 12, 0, inc_mem, O(regs.hl), 0 },
+    { "DEC (HL)", 1, 12, 0, dec_mem, O(regs.hl), 0 },
     { "LD (HL),u8", 2, 12, 0, ld_mem16, O(regs.hl), O(regs.pc) },
     { "SCF", 1, 4, 0, scf, 0, 0 },
     { "JR C,i8", 2, 8, 12, jr, 0, 0 },
     { "ADD HL,SP", 1, 8, 0, add, 0, 0 },
     { "LD A,(HL-)", 1, 8, 0, ld_read8_decsrc, O(regs.a), O(regs.hl) },
-    { "DEC SP", 1, 8, 0, dec, 0, 0 },
-    { "INC A", 1, 4, 0, inc, 0, 0 },
-    { "DEC A", 1, 4, 0, dec, 0, 0 },
+    { "DEC SP", 1, 8, 0, dec_reg16, O(regs.sp), 0 },
+    { "INC A", 1, 4, 0, inc_reg8, O(regs.a), 0 },
+    { "DEC A", 1, 4, 0, dec_reg8, O(regs.a), 0 },
     { "LD A,u8", 2, 8, 0, ld_read8, O(regs.a), O(regs.pc) },
     { "CCF", 1, 4, 0, ccf, 0, 0 },
     { "LD B,B", 1, 4, 0, ld_reg8, O(regs.b), O(regs.b) },
