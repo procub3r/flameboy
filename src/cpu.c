@@ -197,7 +197,7 @@ void dec_mem(struct Console* console) {
 
 void cpuExecuteOpcode(struct Console* console) {
     uint8_t opcode = memRead8(&console->memory, PC);
-    PC++; // So that is points to the first instruction operand (if it exists)
+    PC++; // So that it points to the first instruction operand (if it exists)
     console->cpu.current_opcode = opcode;
     if (opcode != 0xCB) {
         INSTRUCTION.execute(console);
